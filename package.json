@@ -1,0 +1,31 @@
+{
+  "name": "kameronbriggs.com",
+  "version": "1.0.0",
+  "description": "My website to display things.",
+  "main": "middleware.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js",
+    "dev_start": "nodemon server.js" 
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kamjam31xx/kameronbriggs.com.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Kamjam31xx/kameronbriggs.com/issues"
+  },
+  "homepage": "https://github.com/Kamjam31xx/kameronbriggs.com#readme",
+  "dependencies": {
+    "crypto": "^1.0.1",
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "https": "^1.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  }
+}

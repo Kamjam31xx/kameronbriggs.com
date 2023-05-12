@@ -1,0 +1,18 @@
+{
+    "ports" : {
+        "http": 80,
+        "https": 443,
+        "ssh": 22
+    },
+    "paths" : {
+        "privateKey": "/etc/letsencrypt/live/kameronbriggs.com/privkey.pem",
+        "fullChain": "/etc/letsencrypt/live/kameronbriggs.com/fullchain.pem",
+        "privateKeyLocal": "/home/kamjam31xx/kameronbriggs/ssl/privkey.pem",
+        "fullChainLocal": "/home/kamjam31xx/kameronbriggs/ssl/fullchain.pem",
+        "app": "/home/kamjam31xx/kameronbriggs/"
+    },
+    "basicAuth" : {
+        "username" : "admin",
+        "password" : "abc123"
+    }
+}
