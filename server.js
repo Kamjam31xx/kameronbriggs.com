@@ -41,7 +41,7 @@ app.use(session({
     saveUninitialized: true
 }));
 //app.use(logger.auth);
-app.get(`/`, (request, response, next) => {secure.basicAuth(request, response, next)});
+app.get(`/`, secure.basicAuth);
 app.use(express.static("public"));
 
 
