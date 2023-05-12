@@ -40,7 +40,7 @@ app.use(session({
     resave: false,
     saveUninitialized: true
 }));
-app.use(logger.auth);
+//app.use(logger.auth);
 app.get(`/`, (request, response, next) => {secure.basicAuth(request, response, next)});
 app.use(express.static("public"));
 
