@@ -6,6 +6,7 @@ const secure = {
 
     basicAuth: (request, response, next) =>
     {
+        console.log("basic auth func : " + request.headers.authorization);
         const reject = () => 
         {
             response.setHeader("www-authenticate", "Basic");
