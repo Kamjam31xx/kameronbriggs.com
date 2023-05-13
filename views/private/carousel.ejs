@@ -143,6 +143,7 @@ const SETTINGS = Object.freeze({
     far            :  1000,
 
     antialias      : true ,
+    pixelScale     : 1.0  ,
 
     fogNear        : 180  ,
     fogFar         : 350  ,
@@ -486,7 +487,7 @@ function init() {
 
     renderer = new THREE.WebGLRenderer({ antialias: SETTINGS.antialias });
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize((window.innerWidth/Settings.pixelScale), (window.innerHeight/Settings.pixelScale));
+    renderer.setSize((window.innerWidth/SETTINGS.pixelScale), (window.innerHeight/SETTINGS.pixelScale));
     renderer.domElement.style.width =  renderer.domElement.width  * Settings.pixelScale + 'px';
     renderer.domElement.style.height = renderer.domElement.height * Settings.pixelScale + 'px';
     
