@@ -417,8 +417,8 @@ const INTERFACE = {
 
 function onPointerMove(event) {
 
-    INTERFACE.mouse.x = (event.clientX / canvas.width) * 2 - 1;
-    INTERFACE.mouse.y = -(event.clientY / canvas.height) * 2 + 1;
+    INTERFACE.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    INTERFACE.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
     INTERFACE.checkHover(INTERFACE.mouse.x, INTERFACE.mouse.y);
 
