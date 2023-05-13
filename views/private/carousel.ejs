@@ -2,7 +2,7 @@
 // Author : Kameron Briggs
 // 11/21/22
 let camera, scene, renderer, mesh, material, stats;
-let canvas = document.getElementById("canvas-3dv");
+//let canvas = document.getElementById("canvas-3dv");
 
 const PI         = Object.freeze(   3.14159     );
 const TO_RADIANS = Object.freeze(   PI/180      );
@@ -484,7 +484,7 @@ function animate() {
 
 function init() {
 
-    renderer = new THREE.WebGLRenderer({ antialias: SETTINGS.antialias , canvas: canvas });
+    renderer = new THREE.WebGLRenderer({ antialias: SETTINGS.antialias });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize((window.innerWidth/Settings.pixelScale), (window.innerHeight/Settings.pixelScale));
     renderer.domElement.style.width =  renderer.domElement.width  * Settings.pixelScale + 'px';
