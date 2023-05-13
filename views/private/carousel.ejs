@@ -1,0 +1,564 @@
+<script type="module">
+// Author : Kameron Briggs
+// 11/21/22
+let camera, scene, renderer, mesh, material, stats;
+let canvas = document.getElementById("canvas-3dv");
+
+const PI         = Object.freeze(   3.14159     );
+const TO_RADIANS = Object.freeze(   PI/180      );
+const TAU        = Object.freeze(   2.0*PI      );
+const E          = Object.freeze(   2.71828     );
+
+const UTILS = {
+
+    randomInt: function(min = 0, max = 255) {
+
+        min = Math.ceil(min);
+        max = Math.floor(max);
+    
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+
+    },
+
+    colorString: function(r,g,b) {
+
+        return "rgb(" + r + ", " + g + ", " + b + ")";
+
+    },
+
+    randomColorString: function() {
+
+        return this.colorString(this.randomInt(), this.randomInt(), this.randomInt());
+
+    },
+
+    bevelPlaneGeom: function(h, w, radius, divisions) {
+
+        divisions += 2; // change to allow 0 and 1
+        w /= 2;
+        h /= 2;
+        let stepAngle = (90 * TO_RADIANS) / divisions;
+        let diameter = 2 * radius;
+        let trianglesPerCorner = 1 + divisions;
+        let vPerCorner = trianglesPerCorner + 2;
+
+        let vertices = [];
+        let indices = [];
+
+        let q = [ {x:1, y:1}, {x:-1, y:1}, {x:-1, y:-1}, {x:1, y:-1} ];
+        for (let i = 0; i < 4; i += 1) {
+
+            let origin = { x: (w - diameter) * q[i].x, y: (h - diameter) * q[i].y };
+            vertices.push({ x: origin.x, y: origin.y, z: 0.0 });
+
+            for (let j = 0; j < divisions + 1; j += 1) {
+
+                let theta = stepAngle * (j +  i * divisions);
+                let project = { x: radius * Math.cos(theta), y: radius * Math.sin(theta) };
+                vertices.push({ x: project.x + origin.x, y: project.y + origin.y, z: 0.0 });
+
+            }
+
+        }
+
+        for (let i = 0; i < 4; i += 1) {
+
+            let iStart = i * (divisions + 2);
+            for (let j = 2; j < vPerCorner - 1; j += 1) {
+
+                indices.push({ a: iStart, b: iStart + j - 1, c: iStart + j });
+
+            }
+
+            let e0 = iStart;
+            let e1 = iStart + vPerCorner - 2;
+            let e2 = i == 3 ? 0 : iStart + vPerCorner - 1;
+            let e4 = i == 3 ? 1 : iStart + vPerCorner;
+            indices.push({ a: e0, b: e1, c: e2 });
+            indices.push({ a: e1, b: e2, c: e4 });
+
+        }
+
+        let step = vPerCorner;
+        indices.push({ a: 0 * step, b: 1 * step, c: 2 * step });
+        indices.push({ a: 0 * step, b: 2 * step, c: 3 * step });
+
+        let triangles = [];
+        for (let i = 0; i < indices.length; i += 1) {
+
+            let tri = indices[i];
+
+            let a0 = vertices[tri.a].x;
+            let a1 = vertices[tri.a].y;
+            let a2 = vertices[tri.a].z;
+            let a3 = vertices[tri.b].x;
+            let a4 = vertices[tri.b].y;
+            let a5 = vertices[tri.b].z;
+            let a6 = vertices[tri.c].x;
+            let a7 = vertices[tri.c].y;
+            let a8 = vertices[tri.c].z;
+
+            triangles.push(a0);
+            triangles.push(a1);
+            triangles.push(a2);
+            triangles.push(a3);
+            triangles.push(a4);
+            triangles.push(a5);
+            triangles.push(a6);
+            triangles.push(a7);
+            triangles.push(a8);
+
+        }
+
+        let trianglesCopy = new Float32Array(triangles);
+        let geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.BufferAttribute(trianglesCopy, 3));
+        geometry.computeVertexNormals();
+
+        return geometry;
+
+    }
+
+}
+
+const COLORS = Object.freeze({
+
+    pvPink     : 0xff3fb9,
+    pvGrey     : 0x696969, // sample from site
+    pvBlack    : 0x000000, // sample from site
+    pvWhite    : 0xffffff, // sample from site
+    ambient    : 0x404040,
+    direcrional: 0xffffff,
+
+});
+
+const SETTINGS = Object.freeze({
+
+    cameraDistance :  250 ,
+    cameraHeight   : -20  ,
+    cameraRotateMod: -3.2 ,
+    cameraZoom     :  2   ,
+    fov            :  60  ,
+    near           :  1   ,
+    far            :  1000,
+
+    antialias      : true ,
+
+    fogNear        : 180  ,
+    fogFar         : 350  ,
+
+    directionalIntensity: 1.25,
+    directionalPosition: new THREE.Vector3(0,2,1),
+
+});
+
+const TIME = {
+
+    now  : 0         ,
+    last : Date.now(),
+    delta: 0         ,
+
+    update : function() {
+
+        this.now = Date.now();
+        this.delta = this.now - this.last;
+        this.last = this.now;
+
+    }
+
+}
+
+const PLANES = {
+
+    elements         : []         ,
+    highlighted      : []         ,
+    count            : 5          ,
+    active           : 50         ,
+    target           : 2          ,
+    center           : (5 - 1) / 2,
+    aspect           : 5/4        ,
+    width            : 80         ,
+    height           : 80 * (5/4) ,
+    type             : "bevel"    ,
+    bevelSubdivisions: 10         ,
+    bevelRadius      : 3          ,
+
+    push: function(plane) {
+
+        this.elements.push(plane);
+
+    },
+
+    highlight: function(index) {
+
+        let red = Math.round(this.elements[index].originalColor.red / 6) + 100;
+        let green = Math.round(this.elements[index].originalColor.green / 6) + 120;
+        let blue = Math.round(this.elements[index].originalColor.blue / 6) + 165;
+
+        this.elements[index].material.color.set(UTILS.colorString(red, green, blue));
+        this.highlighted.push(index);
+
+    },
+
+    unhighlight: function() {
+
+        for(let i of this.highlighted) {
+
+            let col = this.elements[i].originalColor;
+            this.elements[i].material.color.set(UTILS.colorString(col.red, col.green, col.blue));
+
+        }
+
+        for(let i = 0; i < this.highlighted.length; i += 1){
+
+            this.highlighted.pop();
+
+        }
+
+    },
+
+    unhighlightAll: function() {
+
+        for(let i of this.elements) {
+
+            let col = i.originalColor;
+            i.material.color.set(UTILS.colorString(col.red, col.green, col.blue));
+
+        }
+
+        for(let i = 0; i < this.highlighted.length; i += 1){
+
+            this.highlighted.pop();
+
+        }
+
+    },
+
+}
+
+const TRANSITION = {
+
+    timeModifier: -2000,
+    time        :  2335,
+    progress    :  0.6 ,
+    scale       :  0   ,
+    inProgress  : true ,
+
+    setScale: function(targetPlaneDist) {
+
+        this.scale = targetPlaneDist;
+
+    },
+
+    duration: function() {
+
+        return this.time + this.timeModifier / (1 + (0.01 * Math.pow(Math.abs(this.scale), 2)));
+
+    },
+
+    step: function() {
+
+        this.progress += TIME.delta / this.duration();
+
+        if (this.progress < 1) {
+
+            return Math.sin((this.progress * PI) / 2) * this.scale;
+            
+        } else {
+
+            this.progress = 1;
+            return this.scale;
+
+        }
+    },
+
+    reset: function() {
+
+        this.progress = 0;
+        this.inProgress = false;
+
+    }
+    
+}
+
+const ANIMATION = {
+
+    slideAll       : true,
+    slideScale     : 1,
+    slideAmount    : 0,
+    pad            : 85,
+
+    curveMax       : 120, // name to near
+    curveBreadth   : 0.09,
+    curveStep      : 95,
+
+    scaleZ         : 120 / 2,
+    scaleSpin      : 45 / 2,
+    maxDegrees     : 45,
+    spinGrowth     : 0.09,
+
+    optimized      : true,
+    maxRadiansPos  : 45 * TO_RADIANS,
+    maxRadiansNeg  : 45 * TO_RADIANS * -1,
+    stepOverMax    : 95/120,
+    scaledZ        : 120 * 32 / 2,
+    scaledRads     : 32 * TO_RADIANS * 45 / 2,
+
+    update: function(apex) {
+
+        for (let i = 0; i < PLANES.count; i += 1) {
+
+            let m = i - apex;
+            let k = m * this.curveStep;
+
+            let rot = this.maxRadiansPos - (this.scaledRads / (Math.pow(k * this.spinGrowth, 2) + 16));
+            PLANES.elements[i].rotation.y = k < 0 ? rot : -rot;
+
+            let zPos = this.scaledZ / (Math.pow(k * this.curveBreadth, 2) + 16);
+            let xPos = m * (zPos * this.stepOverMax + this.pad);
+            zPos *= 0.8 + 0.2 * Math.pow(this.scaleByTransitionState(1, 1), 2);
+
+            PLANES.elements[i].position.x = xPos;
+            PLANES.elements[i].position.z = zPos;
+        }
+
+    },
+
+    optimize: function() {
+
+        this.posMaxRadians = this.maxDegrees * TO_RADIANS;
+        this.negMaxRadians = this.maxDegrees * TO_RADIANS * -1;
+
+        this.stepOverMax = this.curveStep / this.curveMax;
+
+        this.scaledZ = this.scaleZ * 32;
+
+        this.scaledRads = 32 * TO_RADIANS * this.scaleSpin;
+
+        this.optimized = true;
+
+    },
+
+    scaleByTransitionState: function(n, flip) {
+
+        let scale = 1 + Math.cos(TRANSITION.progress * PI * 2) * flip;
+        scale /= 2;
+        return n * Math.abs(scale);
+
+    }
+
+}
+
+const INTERFACE = {
+    
+    raycaster: new THREE.Raycaster()    ,
+    mouse    : new THREE.Vector2(-2,-2) ,
+    clicked  : false                    ,
+    hovered  : false                    ,
+    locked   : false                    ,
+    unlocked : true                     ,
+    needsCleanup  : false               ,
+
+    lock: function() {
+
+        this.locked = true;
+        this.unlocked = false;
+
+    },
+
+    unlock: function() {
+
+        this.locked = false;
+        this.unlocked = true;
+
+    },
+
+    update: function() {
+
+        this.raycaster.setFromCamera(this.mouse, camera);
+        const intersects = this.raycaster.intersectObjects(scene.children);
+
+        PLANES.unhighlight();
+
+        if(intersects.length) {
+
+            let hoveredPlane = intersects[0].object.planeIndex;
+
+            PLANES.highlight(hoveredPlane);
+
+            if (this.clicked) {
+
+                PLANES.target = hoveredPlane;
+                TRANSITION.inProgress = true;
+                this.clicked = false;
+                this.unlock();
+
+            }
+
+        }
+
+    },
+
+    checkHover: function(x, y) {
+
+        if(x <= 1 && x >= -1 && y <= 1 && y >= -1) {
+
+            INTERFACE.hovered = true;
+
+        } else {
+
+            INTERFACE.hovered = false;
+
+        }
+
+    },
+    
+}
+
+function onPointerMove(event) {
+
+    INTERFACE.mouse.x = (event.clientX / canvas.width) * 2 - 1;
+    INTERFACE.mouse.y = -(event.clientY / canvas.height) * 2 + 1;
+
+    INTERFACE.checkHover(INTERFACE.mouse.x, INTERFACE.mouse.y);
+
+}
+
+function onClick(event) {
+
+    if(INTERFACE.unlocked) {
+        
+        INTERFACE.clicked = true;
+        INTERFACE.lock();
+
+    }
+}
+
+function onWindowResize() {
+
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+}
+
+window.addEventListener("click", onClick);
+window.addEventListener("pointermove", onPointerMove);
+window.addEventListener("resize", onWindowResize, false);
+
+
+init();
+animate();
+
+
+function animate() {
+    requestAnimationFrame(animate);
+
+    if( INTERFACE.hovered || TRANSITION.inProgress ) {
+
+        TIME.update();
+
+        if ( PLANES.active != PLANES.target ) {
+
+            TRANSITION.setScale( PLANES.target - PLANES.active );
+            ANIMATION.update( PLANES.active + TRANSITION.step() );
+
+            if (TRANSITION.progress == 1) {
+
+                PLANES.active = PLANES.target;
+                TRANSITION.reset();
+
+            }
+
+        }
+
+        INTERFACE.update();
+
+        renderer.render( scene, camera );
+
+    }
+
+}
+
+
+function init() {
+
+    renderer = new THREE.WebGLRenderer({ antialias: SETTINGS.antialias , canvas: canvas });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize((window.innerWidth/Settings.pixelScale), (window.innerHeight/Settings.pixelScale));
+    renderer.domElement.style.width =  renderer.domElement.width  * Settings.pixelScale + 'px';
+    renderer.domElement.style.height = renderer.domElement.height * Settings.pixelScale + 'px';
+    
+    camera = new THREE.PerspectiveCamera(SETTINGS.fov, canvas.width / canvas.height, SETTINGS.near, SETTINGS.far);
+    camera.position.z = SETTINGS.cameraDistance;
+    camera.position.y = SETTINGS.cameraHeight;
+
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(COLORS.pvGrey);
+
+    scene.fog = new THREE.Fog(COLORS.pvPink, SETTINGS.fogNear, SETTINGS.fogFar);
+
+    {
+        let base = Math.abs(camera.position.y) - ANIMATION.curveMax;
+        let opposite = camera.position.y;
+        let hypotenuse = Math.sqrt(base * base + opposite * opposite);
+        let alpha = Math.asin(opposite / hypotenuse) / 2;
+        camera.rotation.set(-alpha * 2 + (SETTINGS.cameraRotateMod * TO_RADIANS), 0, 0);
+    }
+
+    camera.zoom = SETTINGS.cameraZoom;
+    camera.updateProjectionMatrix();
+
+    for (let i = 0; i < PLANES.count; i += 1) {
+
+        let mat = new THREE.MeshBasicMaterial({ color: UTILS.colorString(255, 255, 255), side: THREE.DoubleSide });
+        let geom = UTILS.bevelPlaneGeom(PLANES.width, PLANES.height, 3, 10);
+        let mesh = new THREE.Mesh(geom, mat);
+
+        mesh.originalColor = { red: 255, green: 255, blue: 255 };
+        mesh.planeIndex = i;
+
+        PLANES.push(mesh);
+
+        scene.add(mesh);
+    }
+
+    let light = new THREE.AmbientLight(COLORS.ambient);
+    scene.add(light);
+
+    let directionalLight = new THREE.DirectionalLight(COLORS.directional, SETTINGS.directionalIntensity);
+    directionalLight.position.copy(SETTINGS.directionalPosition);
+    scene.add(directionalLight);
+
+}
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
