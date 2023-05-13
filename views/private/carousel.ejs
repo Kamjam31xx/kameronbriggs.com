@@ -487,11 +487,11 @@ function init() {
 
     renderer = new THREE.WebGLRenderer({ antialias: SETTINGS.antialias });
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize((window.innerWidth/SETTINGS.pixelScale), (window.innerHeight/SETTINGS.pixelScale));
+    renderer.setSize((window.innerWidth/SETTINGS.pixelScale), (window.innerWidth/SETTINGS.pixelScale));
     renderer.domElement.style.width =  renderer.domElement.width  * SETTINGS.pixelScale + 'px';
     renderer.domElement.style.height = renderer.domElement.height * SETTINGS.pixelScale + 'px';
     
-    camera = new THREE.PerspectiveCamera(SETTINGS.fov, canvas.width / canvas.height, SETTINGS.near, SETTINGS.far);
+    camera = new THREE.PerspectiveCamera(SETTINGS.fov, window.innerWidth / window.innerWidth, SETTINGS.near, SETTINGS.far);
     camera.position.z = SETTINGS.cameraDistance;
     camera.position.y = SETTINGS.cameraHeight;
 
